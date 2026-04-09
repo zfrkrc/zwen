@@ -11,12 +11,14 @@ services:
       - ollama_data:/root/.ollama   # model weights & blobs
     networks:
       - ai_net
-    # ── Intel GPU passthrough (/dev/dri) ──────────────────────────────
-    devices:
-      - /dev/dri:/dev/dri         # Intel iGPU (i915 / Iris Xe)
-    group_add:
-      - render                    # access to renderD128
-      - video
+    # ── NVIDIA GPU support ────────────────────────────────────────────
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     environment:
       - OLLAMA_KEEP_ALIVE=24h     # keep models loaded in VRAM
       - OLLAMA_HOST=0.0.0.0       # listen on all interfaces inside container
