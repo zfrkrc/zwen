@@ -140,6 +140,31 @@
     }
     .model-select:hover { border-color: rgba(139,92,246,.6); background-color: rgba(139,92,246,.1); }
     .model-select option { background: #110f1e; color: #e2e8f0; }
+
+    /* ── URL Banner ── */
+    .url-banner {
+      background: rgba(16,185,129,.08);
+      border: 1px solid rgba(16,185,129,.25);
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #6ee7b7;
+      animation: slideUp .3s ease;
+    }
+    .url-banner .url-pill {
+      background: rgba(16,185,129,.15);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 
@@ -202,6 +227,16 @@
         placeholder="Örnek: Karanlık temalı, animasyonlu bir SaaS açılış sayfası oluştur. Hero section, özellik kartları ve CTA butonu olsun."
         class="w-full bg-white/[.03] border border-white/[.08] rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/40 transition-all"
       ></textarea>
+
+      <!-- URL detected banner -->
+      <div id="url-banner" class="url-banner mt-3" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" class="w-4 h-4 flex-shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+        </svg>
+        <span>URL algılandı — içerik otomatik okunacak:</span>
+        <span id="url-pill" class="url-pill"></span>
+        <span id="url-fetch-status" class="ml-auto text-xs text-emerald-600"></span>
+      </div>
 
       <!-- Quick prompts -->
       <div class="mt-3 flex flex-wrap gap-2">
@@ -285,6 +320,30 @@
 let generatedCode = "";
 let isGenerating  = false;
 let tokenCount    = 0;
+let detectedURL   = null;   // prompt'ta algılanan URL
+
+// ── URL Algılama ─────────────────────────────────────────────────────────────
+function extractURL(text) {
+  const match = text.match(/https?:\/\/[^\s]+/);
+  return match ? match[0] : null;
+}
+
+function onPromptInput() {
+  updateCharCount();
+  const text = document.getElementById('prompt').value;
+  const url  = extractURL(text);
+  const banner = document.getElementById('url-banner');
+  if (url) {
+    detectedURL = url;
+    document.getElementById('url-pill').textContent = url;
+    document.getElementById('url-fetch-status').textContent = '';
+    banner.style.display = 'flex';
+  } else {
+    detectedURL = null;
+    banner.style.display = 'none';
+  }
+}
+document.getElementById('prompt').addEventListener('input', onPromptInput);
 
 // ── Quick prompts ───────────────────────────────────────────────────────────
 const quickMap = {
@@ -303,7 +362,6 @@ function quickPrompt(btn) {
 }
 
 // ── Char counter ────────────────────────────────────────────────────────────
-document.getElementById('prompt').addEventListener('input', updateCharCount);
 function updateCharCount() {
   const len = document.getElementById('prompt').value.length;
   document.getElementById('char-count').textContent = `${len} karakter`;
@@ -370,8 +428,31 @@ function downloadCode() {
 async function generate() {
   if (isGenerating) return;
   const promptEl  = document.getElementById('prompt');
-  const prompt    = promptEl.value.trim();
+  let   prompt    = promptEl.value.trim();
   if (!prompt) { showError("Lütfen bir prompt gir."); return; }
+
+  // ── URL varsa önce içeriği fetch et ──────────────────────────────────────
+  if (detectedURL) {
+    const statusEl = document.getElementById('url-fetch-status');
+    statusEl.textContent = '⏳ Okunuyor…';
+    try {
+      const fetchRes  = await fetch('/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: detectedURL })
+      });
+      const fetchData = await fetchRes.json();
+      if (fetchData.error) throw new Error(fetchData.error);
+
+      // URL prompt'tan sil, site içeriğini context olarak ekle
+      const userRequest = prompt.replace(detectedURL, '').trim() || 'Bu siteyi analiz et ve benzer modern bir web sitesi oluştur.';
+      prompt = `Aşağıda ${detectedURL} adresindeki sitenin içeriği var:\n\nBaşlık: ${fetchData.title}\nAçıklama: ${fetchData.description}\n\nSayfa İçeriği:\n${fetchData.content}\n\n---\nGörev: ${userRequest}`;
+      statusEl.textContent = '✅ Okundu';
+    } catch (e) {
+      statusEl.textContent = '⚠️ Okunamadı';
+      // URL okunamazsa orijinal prompt ile devam et
+    }
+  }
 
   // UI → loading state
   isGenerating    = true;
