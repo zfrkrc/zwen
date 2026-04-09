@@ -3,8 +3,8 @@ const cors = require("cors");
 const path = require("path");
 
 const app = express();
-const PORT = 3000;
-const OLLAMA_BASE = "http://localhost:11434";
+const PORT = process.env.PORT || 4000;
+const OLLAMA_BASE = process.env.OLLAMA_BASE || "http://localhost:11434";
 
 const SYSTEM_PROMPT =
   "You are a senior frontend developer. Generate clean, modern, responsive websites using HTML, TailwindCSS, and vanilla JS. Return only code.";
