@@ -1,57 +1,19 @@
 services:
-
-  # ── Ollama (LLM backend) ─────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"          # Ollama REST API
-    volumes:
-      - ollama_data:/root/.ollama   # model weights & blobs
-    networks:
-      - ai_net
-    # ── NVIDIA GPU support ────────────────────────────────────────────
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    environment:
-      - OLLAMA_KEEP_ALIVE=24h     # keep models loaded in VRAM
-      - OLLAMA_HOST=0.0.0.0       # listen on all interfaces inside container
-
   # ── Open WebUI (chat frontend) ───────────────────────────────────────────
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
     restart: unless-stopped
-    ports:
-      - "3000:8080"               # host:3000 → container:8080
+    # Use host network so it can directly talk to native systemd Ollama
+    network_mode: "host"
     volumes:
-      - webui_data:/app/backend/data   # user settings, history, uploads
-    networks:
-      - ai_net
-    depends_on:
-      - ollama
+      - webui_data:/app/backend/data
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434   # internal DNS via docker network
+      - PORT=3000
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
       - WEBUI_SECRET_KEY=change-me-in-production
-      - WEBUI_AUTH=false          # set to true to enable login
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # lets webui reach host services
+      - WEBUI_AUTH=false
 
-# ── Named volumes ────────────────────────────────────────────────────────────
 volumes:
-  ollama_data:
-    name: ollama_data
   webui_data:
     name: webui_data
-
-# ── Shared network ───────────────────────────────────────────────────────────
-networks:
-  ai_net:
-    name: ai_net
-    driver: bridge
