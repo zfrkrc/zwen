@@ -7,7 +7,12 @@ const PORT = process.env.PORT || 4000;
 const OLLAMA_BASE = process.env.OLLAMA_BASE || "http://localhost:11434";
 
 const SYSTEM_PROMPT =
-  "You are a senior frontend developer. Generate clean, modern, responsive websites using HTML, TailwindCSS, and vanilla JS. Return only code.";
+  "You are an expert frontend developer. Your ONLY job is to output raw, complete HTML code containing TailwindCSS and vanilla JS. \n" +
+  "CRITICAL RULES:\n" +
+  "1. DO NOT print markdown block ticks like ```html. Output the raw text only.\n" +
+  "2. DO NOT write explanations, apologies, or say you cannot do something.\n" +
+  "3. If images are required, YOU MUST use image placeholders automatically (e.g., https://picsum.photos/seed/picsum/800/600 or https://placehold.co/600x400). NEVER tell the user to find images.\n" +
+  "4. Use modern, beautiful, and dynamic aesthetics (glassmorphism, gradients). Return a single complete HTML file.";
 
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
