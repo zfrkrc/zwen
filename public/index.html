@@ -119,6 +119,27 @@
     .dot-live { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
     .dot-err  { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.2); }
     .dot-idle { background: #6b7280; }
+
+    /* ── Model selector ── */
+    .model-select {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(139,92,246,.3);
+      color: #a78bfa;
+      border-radius: 9999px;
+      padding: 3px 12px 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+      transition: all .2s ease;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a78bfa'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    .model-select:hover { border-color: rgba(139,92,246,.6); background-color: rgba(139,92,246,.1); }
+    .model-select option { background: #110f1e; color: #e2e8f0; }
   </style>
 </head>
 
@@ -143,12 +164,14 @@
         <span id="status-text">Bekliyor</span>
       </div>
 
-      <!-- Model pill -->
-      <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full glass text-xs text-gray-400">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-3.5 h-3.5 text-brand-400">
+      <!-- Model selector -->
+      <div class="hidden sm:flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" class="w-3.5 h-3.5 flex-shrink-0">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
         </svg>
-        qwen2.5-coder:7b
+        <select id="model-select" class="model-select">
+          <option value="qwen2.5-coder:7b">qwen2.5-coder:7b</option>
+        </select>
       </div>
     </div>
   </nav>
@@ -372,10 +395,11 @@ async function generate() {
   switchTab('code');
 
   try {
+    const selectedModel = document.getElementById('model-select').value;
     const res = await fetch('/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, model: selectedModel })
     });
 
     if (!res.ok) {
@@ -431,6 +455,23 @@ async function generate() {
 document.getElementById('prompt').addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generate();
 });
+
+// ── Load available Ollama models on startup ───────────────────────────────────
+async function loadModels() {
+  try {
+    const res  = await fetch('/models');
+    const data = await res.json();
+    const sel  = document.getElementById('model-select');
+    if (data.models && data.models.length > 0) {
+      sel.innerHTML = data.models
+        .map(m => `<option value="${m}"${m.includes('qwen2.5-coder') ? ' selected' : ''}>${m}</option>`)
+        .join('');
+    }
+  } catch {
+    // Ollama henüz cevap vermiyorsa varsayılan seçenek kalır
+  }
+}
+loadModels();
 </script>
 </body>
 </html>
