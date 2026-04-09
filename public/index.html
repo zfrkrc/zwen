@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zwen — AI Web Developer</title>
+  <meta name="description" content="Yerel AI destekli web sitesi üreteci. Ollama + qwen2.5-coder ile çalışır." />
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+            },
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'fade-in': 'fadeIn 0.4s ease forwards',
+            'slide-up': 'slideUp 0.4s ease forwards',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { opacity: '0', transform: 'translateY(16px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #070711;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated gradient background ── */
+    .bg-grid {
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139,92,246,.25), transparent),
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+    }
+
+    /* ── Glassmorphism card ── */
+    .glass {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* ── Textarea & output scrollbar ── */
+    textarea::-webkit-scrollbar,
+    #output::-webkit-scrollbar  { width: 5px; }
+    textarea::-webkit-scrollbar-thumb,
+    #output::-webkit-scrollbar-thumb {
+      background: rgba(139,92,246,.35);
+      border-radius: 99px;
+    }
+
+    /* ── Code output font ── */
+    #output { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+    /* ── Blinking cursor while generating ── */
+    .caret::after {
+      content: '▌';
+      animation: blink 1s step-end infinite;
+      color: #a78bfa;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Gradient button ── */
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      transition: all .25s ease;
+      box-shadow: 0 0 0 0 rgba(139,92,246,0);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #6d28d9, #9333ea);
+      box-shadow: 0 0 24px rgba(139,92,246,.45);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Copy button ── */
+    .btn-copy {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      transition: all .2s ease;
+    }
+    .btn-copy:hover { background: rgba(255,255,255,.13); }
+
+    /* ── Tab bar ── */
+    .tab-btn.active { background: rgba(139,92,246,.2); color: #a78bfa; border-color: rgba(139,92,246,.45); }
+    .tab-btn { border: 1px solid transparent; transition: all .2s ease; }
+    .tab-btn:hover:not(.active) { background: rgba(255,255,255,.06); }
+
+    /* ── Status dot ── */
+    .dot-live { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
+    .dot-err  { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.2); }
+    .dot-idle { background: #6b7280; }
+  </style>
+</head>
+
+<body class="bg-grid text-gray-100 antialiased">
+
+  <!-- ═══ NAV ═══ -->
+  <nav class="fixed top-0 inset-x-0 z-50 glass border-b border-white/[.06]">
+    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="w-4 h-4">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <span class="font-semibold text-sm tracking-wide">Zwen<span class="text-brand-400"> AI</span></span>
+      </div>
+
+      <!-- Status -->
+      <div id="status-badge" class="flex items-center gap-2 text-xs text-gray-400">
+        <span id="status-dot" class="w-2 h-2 rounded-full dot-idle transition-all"></span>
+        <span id="status-text">Bekliyor</span>
+      </div>
+
+      <!-- Model pill -->
+      <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full glass text-xs text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-3.5 h-3.5 text-brand-400">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+        </svg>
+        qwen2.5-coder:7b
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <main class="pt-24 pb-16 px-4 max-w-5xl mx-auto">
+    <div class="text-center mb-10 animate-fade-in">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs text-brand-400 mb-4 border border-brand-500/20">
+        <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse"></span>
+        Ollama ile çalışıyor — tamamen yerel
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+        AI <span class="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">Web Developer</span>
+      </h1>
+      <p class="text-gray-400 text-lg max-w-xl mx-auto leading-relaxed">
+        Doğal dilde web sitesi tanımla — temiz HTML, TailwindCSS ve vanilla JS kodu anında üretilsin.
+      </p>
+    </div>
+
+    <!-- ═══ PROMPT CARD ═══ -->
+    <div class="glass rounded-2xl p-6 mb-5 animate-slide-up">
+      <label for="prompt" class="block text-sm font-medium text-gray-300 mb-3">
+        <span class="mr-1.5">✦</span> Ne oluşturmak istiyorsun?
+      </label>
+      <textarea
+        id="prompt"
+        rows="5"
+        placeholder="Örnek: Karanlık temalı, animasyonlu bir SaaS açılış sayfası oluştur. Hero section, özellik kartları ve CTA butonu olsun."
+        class="w-full bg-white/[.03] border border-white/[.08] rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/40 transition-all"
+      ></textarea>
+
+      <!-- Quick prompts -->
+      <div class="mt-3 flex flex-wrap gap-2">
+        <span class="text-xs text-gray-600 self-center">Hızlı:</span>
+        <button onclick="quickPrompt(this)" class="quick-btn px-2.5 py-1 rounded-lg glass text-xs text-gray-400 hover:text-brand-400 hover:border-brand-500/30 transition-all border border-transparent">Landing page</button>
+        <button onclick="quickPrompt(this)" class="quick-btn px-2.5 py-1 rounded-lg glass text-xs text-gray-400 hover:text-brand-400 hover:border-brand-500/30 transition-all border border-transparent">Dashboard UI</button>
+        <button onclick="quickPrompt(this)" class="quick-btn px-2.5 py-1 rounded-lg glass text-xs text-gray-400 hover:text-brand-400 hover:border-brand-500/30 transition-all border border-transparent">Portfolio sitesi</button>
+        <button onclick="quickPrompt(this)" class="quick-btn px-2.5 py-1 rounded-lg glass text-xs text-gray-400 hover:text-brand-400 hover:border-brand-500/30 transition-all border border-transparent">Login formu</button>
+        <button onclick="quickPrompt(this)" class="quick-btn px-2.5 py-1 rounded-lg glass text-xs text-gray-400 hover:text-brand-400 hover:border-brand-500/30 transition-all border border-transparent">Pricing tablosu</button>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between">
+        <span id="char-count" class="text-xs text-gray-600">0 karakter</span>
+        <button id="generate-btn" onclick="generate()" class="btn-primary flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium text-white">
+          <svg id="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"/>
+          </svg>
+          <span id="btn-text">Oluştur</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ OUTPUT CARD ═══ -->
+    <div id="output-card" class="glass rounded-2xl overflow-hidden animate-slide-up" style="display:none;">
+      <!-- Tab bar -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-white/[.06]">
+        <div class="flex items-center gap-2">
+          <button id="tab-code" onclick="switchTab('code')" class="tab-btn active text-xs font-medium px-3 py-1.5 rounded-lg text-gray-300">
+            &lt;/&gt; Kod
+          </button>
+          <button id="tab-preview" onclick="switchTab('preview')" class="tab-btn text-xs font-medium px-3 py-1.5 rounded-lg text-gray-400">
+            ⬡ Önizleme
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="token-count" class="text-xs text-gray-600"></span>
+          <button onclick="copyCode()" class="btn-copy flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+            </svg>
+            <span id="copy-label">Kopyala</span>
+          </button>
+          <button onclick="downloadCode()" class="btn-copy flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+            </svg>
+            İndir
+          </button>
+        </div>
+      </div>
+
+      <!-- Code tab -->
+      <div id="pane-code">
+        <pre id="output" class="p-5 text-gray-300 overflow-auto max-h-[520px] whitespace-pre-wrap break-words leading-relaxed text-[13px]"></pre>
+      </div>
+
+      <!-- Preview tab -->
+      <div id="pane-preview" style="display:none;">
+        <iframe id="preview-frame" class="w-full bg-white" style="height:520px; border:none;"></iframe>
+      </div>
+    </div>
+
+    <!-- ═══ ERROR TOAST ═══ -->
+    <div id="error-toast" class="hidden fixed bottom-6 right-6 max-w-sm glass rounded-xl p-4 border border-red-500/25 animate-slide-up z-50">
+      <div class="flex items-start gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" class="w-5 h-5 flex-shrink-0 mt-0.5">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p id="error-msg" class="text-sm text-red-300"></p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="text-center pb-8 text-xs text-gray-700">
+    Zwen — Tamamen yerel &bull; Verileriniz hiçbir yere gitmiyor
+  </footer>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let generatedCode = "";
+let isGenerating  = false;
+let tokenCount    = 0;
+
+// ── Quick prompts ───────────────────────────────────────────────────────────
+const quickMap = {
+  "Landing page":   "Modern, karanlık temalı bir SaaS landing page oluştur. Hero section, 3 özellik kartı, müşteri yorumları ve CTA butonu olsun. TailwindCSS kullan.",
+  "Dashboard UI":   "Karanlık temalı bir admin dashboard UI oluştur. Sidebar, üst bar, istatistik kartları ve bir tablo olsun.",
+  "Portfolio sitesi": "Yaratıcı bir kişisel portfolio sitesi oluştur. İsim, bio, projeler grid'i ve iletişim bölümü olsun.",
+  "Login formu":    "Glassmorphism stilinde, karanlık arka planlı bir login formu oluştur. E-posta ve şifre alanı, giriş butonu ve 'şifremi unuttum' linki olsun.",
+  "Pricing tablosu": "3 fiyatlandırma planı içeren, karanlık temalı bir pricing sayfası oluştur. Free, Pro ve Enterprise planı olsun."
+};
+
+function quickPrompt(btn) {
+  const txt    = btn.textContent.trim();
+  const prompt = quickMap[txt] || txt;
+  document.getElementById('prompt').value = prompt;
+  updateCharCount();
+}
+
+// ── Char counter ────────────────────────────────────────────────────────────
+document.getElementById('prompt').addEventListener('input', updateCharCount);
+function updateCharCount() {
+  const len = document.getElementById('prompt').value.length;
+  document.getElementById('char-count').textContent = `${len} karakter`;
+}
+
+// ── Tab switcher ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  const isCode = tab === 'code';
+  document.getElementById('pane-code').style.display    = isCode ? '' : 'none';
+  document.getElementById('pane-preview').style.display = isCode ? 'none' : '';
+  document.getElementById('tab-code').classList.toggle('active', isCode);
+  document.getElementById('tab-preview').classList.toggle('active', !isCode);
+
+  if (!isCode && generatedCode) {
+    const clean = extractHTML(generatedCode);
+    const frame = document.getElementById('preview-frame');
+    frame.srcdoc = clean;
+  }
+}
+
+function extractHTML(raw) {
+  // strip markdown code fences if present
+  const match = raw.match(/```(?:html)?\s*([\s\S]*?)```/i);
+  return match ? match[1].trim() : raw.trim();
+}
+
+// ── Status helpers ──────────────────────────────────────────────────────────
+function setStatus(type, text) {
+  const dot  = document.getElementById('status-dot');
+  const label = document.getElementById('status-text');
+  dot.className   = `w-2 h-2 rounded-full transition-all ${type === 'live' ? 'dot-live' : type === 'err' ? 'dot-err' : 'dot-idle'}`;
+  label.textContent = text;
+}
+
+// ── Error toast ─────────────────────────────────────────────────────────────
+function showError(msg) {
+  document.getElementById('error-msg').textContent  = msg;
+  const toast = document.getElementById('error-toast');
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 5000);
+}
+
+// ── Copy ─────────────────────────────────────────────────────────────────────
+function copyCode() {
+  if (!generatedCode) return;
+  navigator.clipboard.writeText(generatedCode).then(() => {
+    const lbl = document.getElementById('copy-label');
+    lbl.textContent = 'Kopyalandı!';
+    setTimeout(() => lbl.textContent = 'Kopyala', 2000);
+  });
+}
+
+// ── Download ──────────────────────────────────────────────────────────────────
+function downloadCode() {
+  if (!generatedCode) return;
+  const blob = new Blob([extractHTML(generatedCode)], { type: 'text/html' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'index.html';
+  a.click();
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function generate() {
+  if (isGenerating) return;
+  const promptEl  = document.getElementById('prompt');
+  const prompt    = promptEl.value.trim();
+  if (!prompt) { showError("Lütfen bir prompt gir."); return; }
+
+  // UI → loading state
+  isGenerating    = true;
+  generatedCode   = "";
+  tokenCount      = 0;
+  const btn       = document.getElementById('generate-btn');
+  const btnText   = document.getElementById('btn-text');
+  const btnIcon   = document.getElementById('btn-icon');
+  const output    = document.getElementById('output');
+  const card      = document.getElementById('output-card');
+
+  btn.disabled    = true;
+  btnText.textContent = "Üretiliyor…";
+  btnIcon.classList.add('animate-spin');
+  output.textContent  = "";
+  output.classList.add('caret');
+  card.style.display  = '';
+  setStatus('live', 'Üretiyor…');
+
+  // Switch to code tab
+  switchTab('code');
+
+  try {
+    const res = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    // SSE reader
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text  = decoder.decode(value, { stream: true });
+      const lines = text.split('\n').filter(l => l.startsWith('data:'));
+
+      for (const line of lines) {
+        const raw = line.slice(5).trim();
+        try {
+          const msg = JSON.parse(raw);
+          if (msg.error) throw new Error(msg.error);
+          if (msg.token) {
+            generatedCode += msg.token;
+            tokenCount++;
+            output.textContent = generatedCode;
+            output.scrollTop   = output.scrollHeight;
+            document.getElementById('token-count').textContent = `${tokenCount} token`;
+          }
+          if (msg.done) break;
+        } catch(e) {
+          if (e.message !== 'Unexpected end of JSON input') throw e;
+        }
+      }
+    }
+
+    setStatus('idle', 'Hazır');
+  } catch (err) {
+    console.error(err);
+    showError(err.message);
+    setStatus('err', 'Hata');
+  } finally {
+    isGenerating = false;
+    btn.disabled = false;
+    btnText.textContent = "Oluştur";
+    btnIcon.classList.remove('animate-spin');
+    output.classList.remove('caret');
+  }
+}
+
+// ── Enter shortcut (Ctrl/Cmd + Enter) ────────────────────────────────────────
+document.getElementById('prompt').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generate();
+});
+</script>
+</body>
+</html>
