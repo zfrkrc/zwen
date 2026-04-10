@@ -342,6 +342,45 @@ let generatedCode = "";
 let isGenerating  = false;
 let tokenCount    = 0;
 let detectedURL   = null;   // prompt'ta algılanan URL
+let uploadedZipContext = null; // .zip'ten gelen repomix içeriği
+
+// ── Zip Yükleme ─────────────────────────────────────────────────────────────
+async function handleZipUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const btn = document.getElementById('btn-upload-zip');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = `<span class="w-3.5 h-3.5 border-2 border-brand-400 border-t-brand-200 rounded-full animate-spin"></span> Okunuyor...`;
+  btn.disabled = true;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch('/upload-httrack', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    uploadedZipContext = data.content;
+    document.getElementById('zip-pill').textContent = file.name;
+    document.getElementById('zip-banner').style.display = 'flex';
+  } catch (err) {
+    showError("Zip Okuma Hatası: " + err.message);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    event.target.value = ""; // reset input
+  }
+}
+
+function clearZip() {
+  uploadedZipContext = null;
+  document.getElementById('zip-banner').style.display = 'none';
+}
 let zipDataContent = null;  // ZIP'ten çıkan birleştirilmiş kodlar
 
 // ── URL Algılama ─────────────────────────────────────────────────────────────
