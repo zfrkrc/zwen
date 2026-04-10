@@ -558,7 +558,17 @@ async function generate() {
 
   // ── ZIP dosyası varsa koda entegre et ───────────────────────────────────
   if (zipDataContent) {
-    prompt = `Aşağıda ZIP olarak dışarıdan yüklenen örnek projenin kodları bulunmaktadır:\n\n${zipDataContent}\n\n---\n[CİDDİ EMİR]: Kodlar çok uzun olduğu için kırpılmış olabilir veya tamamı gösterilmeyebilir. ASLA "verdiğiniz kod parçasının tamamı gösterilmediği için" diyerek özür dileme ve reddetme! Sadece elindeki kısmı (kodun görebildiğin kadarını) analiz et, ne işe yaradığını / nasıl göründüğünü anla ve PÜRÜZSÜZ, TEK BİR HTML dosyası halinde bana sonucu ver.\n\nGÖREV PROMPT'U: ${prompt}`;
+    prompt = `[GÖREV]: ${prompt || 'Aşağıdaki kaynak koda sadık kalarak, bu sitenin yapısını tamamen modern TailwindCSS ile yeniden tasarla. Tüm tasarımı Tek bir HTML dosyasına sığdır.'}
+
+[KESİN EMİR]: 
+1. Ne pahasına olursa olsun bahaneler üretme, özür dileme.
+2. Açıklama metni veya markdown blockticks (\`\`\`html) KESİNLİKLE kullanma, doğrudan saf HTML kodu ver.
+3. Asla "Lorem ipsum" gibi sahte kendi uydurduğun rastgele metinler üretme! Mutlaka <source_code> içerisindeki metinleri, başlıkları ve verileri birebir kullan.
+4. Kaynak kod eksik/kırpılmış olsa dahi elindekinden en iyisini türet.
+
+<source_code>
+${zipDataContent}
+</source_code>`;
   }
 
   // UI → loading state
