@@ -115,7 +115,9 @@ app.post("/upload-zip", upload.single("file"), (req, res) => {
 
     let totalText = "";
     let fileCount = 0;
-    const allowedExtensions = [".html", ".css", ".js", ".json", ".txt"];
+    // Sadece tasarım dosyalarını analiz et. Javascript ve JSON dosyaları
+    // modelin kafasını karıştırıp yanlış/özet sonuçlar üretmesine yol açar.
+    const allowedExtensions = [".html", ".css"];
 
     zipEntries.forEach((zipEntry) => {
       if (!zipEntry.isDirectory) {
