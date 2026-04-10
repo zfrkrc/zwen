@@ -558,19 +558,21 @@ async function generate() {
 
   // ── ZIP dosyası varsa koda entegre et ───────────────────────────────────
   if (zipDataContent) {
-    prompt = `[GÖREV]: ${prompt || 'Aşağıdaki kaynak koda sadık kalarak, bu sitenin yapısını tamamen modern TailwindCSS ile yeniden tasarla. Tüm tasarımı Tek bir HTML dosyasına sığdır.'}
+    prompt = `[ÖNEMLİ GÖREV]: ${prompt || 'Aşağıdaki kaynak koda (HTML/CSS) sadık kalarak, bu sitenin yapısını tamamen modern TailwindCSS ile yeniden tasarla. CSS dosyalarındaki renkleri ve classları anla, mantığını HTML içine inline Tailwind classları olarak göm.'}
 
-[KESİN EMİR]: 
-1. Ne pahasına olursa olsun bahaneler üretme, özür dileme.
-2. Açıklama metni veya markdown blockticks (\`\`\`html) KESİNLİKLE kullanma, doğrudan saf HTML kodu ver.
-3. Asla "Lorem ipsum" gibi sahte kendi uydurduğun rastgele metinler üretme! Mutlaka <source_code> içerisindeki metinleri, başlıkları ve verileri birebir kullan.
-4. Kaynak kod eksik/kırpılmış olsa dahi elindekinden en iyisini türet.
+Aşağıda analiz etmen için yüklenmiş kaynak kodlar bulunmaktadır:
 
 <source_code>
 ${zipDataContent}
 </source_code>
 
-ŞİMDİ GÖREVİ YAP. HİÇBİR AÇIKLAMA YAZMA. ŞU KODU DEVAM ETTİR:
+[MUTLAK UYULMASI GEREKEN KURALLAR]: 
+1. Yukarıdaki kodlardan yola çıkarak TASARIMI KLONLAYACAKSIN. Bana sitenin ne işe yaradığını ANLATMA, özet çıkarma ("Bu metin... özelliklerini açıklar" GİBİ CÜMLELER YASAKTIR).
+2. SEN BİR SOHBET BOTU DEĞİLSİN, BİR KOD ÜRETİCİSİSİN! Yanıtında TEK BİR KELİME BİLE TÜRKÇE AÇIKLAMA VEYA SOHBET BULUNMAYACAK.
+3. KESİNLİKLE markdown blockticks (\`\`\`html) KULLANMA.
+4. "Lorem ipsum" kullanma, orijinal koddaki metinleri kullan.
+5. SADECE VE SADECE AŞAĞIDAKİ GİBİ SAF HTML KODUYLA CEVABINA BAŞLA VE BİTİR:
+
 <!DOCTYPE html>
 <html lang="tr">`;
   }
