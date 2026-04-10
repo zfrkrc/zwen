@@ -1,16 +1,17 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
+const { execFileSync } = require("child_process");
 const multer = require("multer");
 const AdmZip = require("adm-zip");
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
-
-
-const app = express();
 const PORT = process.env.PORT || 4000;
 const OLLAMA_BASE = process.env.OLLAMA_BASE || "http://localhost:11434";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
 
 const SYSTEM_PROMPT =
   "You are an expert frontend developer. Your ONLY job is to output raw, complete HTML code containing TailwindCSS and vanilla JS. \n" +
@@ -53,6 +54,46 @@ app.get("/models", async (req, res) => {
   } catch (err) {
     console.error("Model listesi alınamadı:", err.message);
     res.status(502).json({ error: "Ollama'ya bağlanılamadı.", models: [] });
+  }
+});
+
+// POST /upload-zip — HTTrack .zip yükleme, extract etme ve Repomix ile analiz etme
+app.post("/upload-zip", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Lütfen bir .zip dosyası yükleyin." });
+
+  // Extract için benzersiz bir geçici klasör yarat
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zwen-zip-"));
+  try {
+    const zip = new AdmZip(req.file.buffer);
+    zip.extractAllTo(tempDir, true);
+
+    console.log(`[Repomix] Çalıştırılıyor... (${req.file.originalname})`);
+    
+    // Repomix senkronize çalıştırılır
+    // --style xml kullanarak LLM için daha verimli bir format elde edebiliriz
+    execFileSync("npx", ["repomix", ".", "--style", "xml"], { cwd: tempDir, encoding: "utf8" });
+
+    const repomixOutPath = path.join(tempDir, "repomix-output.xml");
+    if (!fs.existsSync(repomixOutPath)) {
+       throw new Error("Repomix çıktısı oluşturulamadı.");
+    }
+    
+    let content = fs.readFileSync(repomixOutPath, "utf8");
+    
+    // Modal context boyutu için içeriği sınırla (14b model için 30,000 karakter iyidir)
+    if (content.length > 40000) {
+       content = content.slice(0, 40000) + "\n... [İÇERİK ÇOK UZUN OLDUĞU İÇİN KESİLDİ]";
+    }
+
+    console.log(`🗂️  HTTrack Parse: ${req.file.originalname} (${content.length} karakter)`);
+    res.json({ success: true, content });
+
+  } catch (err) {
+    console.error("HTTrack parse hatası:", err.message);
+    res.status(500).json({ error: "Proje analiz edilirken hata oluştu: " + err.message });
+  } finally {
+    // Geçici klasörü temizle
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
