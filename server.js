@@ -140,7 +140,7 @@ app.post("/upload-zip", upload.single("file"), (req, res) => {
     console.log(`📦 Zip Okundu: ${req.file.originalname} (${fileCount} dosya)`);
     
     // Very large zips might exceed context limits
-    const maxLength = 100000;
+    const maxLength = 120000;
     if (totalText.length > maxLength) {
       totalText = totalText.slice(0, maxLength) + "\n\n... (DİKKAT: DOSYA İÇERİĞİ ÇOK UZUN OLDUĞU İÇİN BURADAN SONRASI KESİLDİ) ...";
     }
@@ -176,6 +176,9 @@ app.post("/generate", async (req, res) => {
         system: SYSTEM_PROMPT,
         prompt: prompt.trim(),
         stream: true,
+        options: {
+          num_ctx: 32768 // VRAM müsaade ettiği kadar devasa bağlam penceresi (120k+ karakter)
+        }
       }),
     });
 
