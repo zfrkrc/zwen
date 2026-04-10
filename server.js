@@ -80,9 +80,9 @@ app.post("/upload-zip", upload.single("file"), (req, res) => {
     
     let content = fs.readFileSync(repomixOutPath, "utf8");
     
-    // Modal context boyutu için içeriği sınırla (14b model için 30,000 karakter iyidir)
-    if (content.length > 40000) {
-       content = content.slice(0, 40000) + "\n... [İÇERİK ÇOK UZUN OLDUĞU İÇİN KESİLDİ]";
+    // Modal context boyutu için içeriği sınırla (Qwen coder token limitine göre, yaklaşık 120k karakter alabilir)
+    if (content.length > 100000) {
+       content = content.slice(0, 100000) + "\n<!-- Geri kalanı kırpıldı -->";
     }
 
     console.log(`🗂️  HTTrack Parse: ${req.file.originalname} (${content.length} karakter)`);

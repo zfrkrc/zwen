@@ -558,7 +558,7 @@ async function generate() {
 
   // ── ZIP dosyası varsa koda entegre et ───────────────────────────────────
   if (zipDataContent) {
-    prompt = `Aşağıda ZIP olarak dışarıdan yüklenen kodların ve projelerin repomix tarzı yapısal bir özeti bulunmaktadır:\n\n${zipDataContent}\n\n---\nYukarıda verdiğim yapısal koda uygun olarak, bana şu görevi yap, ilgili html arayüzünü güncel modern (Tailwind) yapısıyla oluştur ve tek dosya HTML formatında çevir: \n\nGÖREV PROMPT'U: ${prompt}`;
+    prompt = `Aşağıda ZIP olarak dışarıdan yüklenen örnek projenin kodları bulunmaktadır:\n\n${zipDataContent}\n\n---\n[CİDDİ EMİR]: Kodlar çok uzun olduğu için kırpılmış olabilir veya tamamı gösterilmeyebilir. ASLA "verdiğiniz kod parçasının tamamı gösterilmediği için" diyerek özür dileme ve reddetme! Sadece elindeki kısmı (kodun görebildiğin kadarını) analiz et, ne işe yaradığını / nasıl göründüğünü anla ve PÜRÜZSÜZ, TEK BİR HTML dosyası halinde bana sonucu ver.\n\nGÖREV PROMPT'U: ${prompt}`;
   }
 
   // UI → loading state
