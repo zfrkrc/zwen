@@ -57,45 +57,6 @@ app.get("/models", async (req, res) => {
   }
 });
 
-// POST /upload-zip — HTTrack .zip yükleme, extract etme ve Repomix ile analiz etme
-app.post("/upload-zip", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "Lütfen bir .zip dosyası yükleyin." });
-
-  // Extract için benzersiz bir geçici klasör yarat
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zwen-zip-"));
-  try {
-    const zip = new AdmZip(req.file.buffer);
-    zip.extractAllTo(tempDir, true);
-
-    console.log(`[Repomix] Çalıştırılıyor... (${req.file.originalname})`);
-    
-    // Repomix senkronize çalıştırılır
-    // --style xml kullanarak LLM için daha verimli bir format elde edebiliriz
-    execFileSync("npx", ["repomix", ".", "--style", "xml"], { cwd: tempDir, encoding: "utf8" });
-
-    const repomixOutPath = path.join(tempDir, "repomix-output.xml");
-    if (!fs.existsSync(repomixOutPath)) {
-       throw new Error("Repomix çıktısı oluşturulamadı.");
-    }
-    
-    let content = fs.readFileSync(repomixOutPath, "utf8");
-    
-    // Modal context boyutu için içeriği sınırla (Qwen coder token limitine göre, yaklaşık 120k karakter alabilir)
-    if (content.length > 100000) {
-       content = content.slice(0, 100000) + "\n<!-- Geri kalanı kırpıldı -->";
-    }
-
-    console.log(`🗂️  HTTrack Parse: ${req.file.originalname} (${content.length} karakter)`);
-    res.json({ success: true, content });
-
-  } catch (err) {
-    console.error("HTTrack parse hatası:", err.message);
-    res.status(500).json({ error: "Proje analiz edilirken hata oluştu: " + err.message });
-  } finally {
-    // Geçici klasörü temizle
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-});
 
 // POST /fetch-url — Verilen URL'yi sunucu tarafında fetch eder, temizlenmiş metni döndürür
 app.post("/fetch-url", async (req, res) => {
@@ -179,7 +140,7 @@ app.post("/upload-zip", upload.single("file"), (req, res) => {
     console.log(`📦 Zip Okundu: ${req.file.originalname} (${fileCount} dosya)`);
     
     // Very large zips might exceed context limits
-    const maxLength = 30000;
+    const maxLength = 100000;
     if (totalText.length > maxLength) {
       totalText = totalText.slice(0, maxLength) + "\n\n... (DİKKAT: DOSYA İÇERİĞİ ÇOK UZUN OLDUĞU İÇİN BURADAN SONRASI KESİLDİ) ...";
     }
