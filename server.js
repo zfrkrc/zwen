@@ -1,6 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const multer = require("multer");
+const AdmZip = require("adm-zip");
+
+const app = express();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -97,6 +103,54 @@ app.post("/fetch-url", async (req, res) => {
 });
 
 // POST /generate — seçili modelle SSE stream
+// POST /upload-zip — ZIP dosyasını alır, içindeki html/css/js leri birleştirir (repomix benzeri)
+app.post("/upload-zip", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Dosya yüklenmedi." });
+
+  try {
+    const zip = new AdmZip(req.file.buffer);
+    const zipEntries = zip.getEntries();
+
+    let totalText = "";
+    let fileCount = 0;
+    const allowedExtensions = [".html", ".css", ".js", ".json", ".txt"];
+
+    zipEntries.forEach((zipEntry) => {
+      if (!zipEntry.isDirectory) {
+        const ext = path.extname(zipEntry.entryName).toLowerCase();
+        if (allowedExtensions.includes(ext) && zipEntry.entryName.indexOf("__MACOSX") === -1) {
+          try {
+            const content = zipEntry.getData().toString("utf8");
+            totalText += `\n\n--- DOSYA: ${zipEntry.entryName} ---\n`;
+            totalText += content;
+            fileCount++;
+          } catch (e) {
+            // Ignore badly encoded files
+          }
+        }
+      }
+    });
+
+    if (fileCount === 0) {
+      return res.status(400).json({ error: "Zip içinde geçerli kod dosyası (html, css, js) bulunamadı." });
+    }
+
+    console.log(`📦 Zip Okundu: ${req.file.originalname} (${fileCount} dosya)`);
+    
+    // Very large zips might exceed context limits
+    const maxLength = 30000;
+    if (totalText.length > maxLength) {
+      totalText = totalText.slice(0, maxLength) + "\n\n... (DİKKAT: DOSYA İÇERİĞİ ÇOK UZUN OLDUĞU İÇİN BURADAN SONRASI KESİLDİ) ...";
+    }
+
+    res.json({ fileName: req.file.originalname, fileCount, content: totalText });
+
+  } catch (err) {
+    console.error("Zip okuma hatası:", err.message);
+    res.status(500).json({ error: "Zip açılırken bir hata oluştu." });
+  }
+});
+
 app.post("/generate", async (req, res) => {
   const { prompt, model } = req.body;
 
